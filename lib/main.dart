@@ -37,6 +37,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final items = [Item('Milk'), Item('Bread'), Item('Rice')];
   final controller = TextEditingController();
+  String filter = 'All';
 
   void addItem() {
     final text = controller.text.trim();
@@ -69,10 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
     controller.clear();
   }
 
-  void removeItem(int index) {
-    final item = items[index];
+  void removeItem(Item item) {
+    final index = items.indexOf(item);
     setState(() {
-      items.removeAt(index);
+      items.remove(item);
     });
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -99,6 +100,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final left = items.where((item) => !item.bought).length;
+
+    final toBuy = items.where((item) => !item.bought).toList();
+    final bought = items.where((item) => item.bought).toList();
+
+    final List<Item> shown;
+    if (filter == 'To buy') {
+      shown = toBuy;
+    } else if (filter == 'Bought') {
+      shown = bought;
+    } else {
+      shown = [...toBuy, ...bought];
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -132,13 +145,51 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('All'),
+                  selected: filter == 'All',
+                  onSelected: (_) {
+                    setState(() {
+                      filter = 'All';
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('To buy'),
+                  selected: filter == 'To buy',
+                  onSelected: (_) {
+                    setState(() {
+                      filter = 'To buy';
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Bought'),
+                  selected: filter == 'Bought',
+                  onSelected: (_) {
+                    setState(() {
+                      filter = 'Bought';
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: items.isEmpty
                 ? const Center(child: Text('Your list is empty'))
+                : shown.isEmpty
+                ? const Center(child: Text('Nothing here'))
                 : ListView.builder(
-                    itemCount: items.length,
+                    itemCount: shown.length,
                     itemBuilder: (context, index) {
-                      final item = items[index];
+                      final item = shown[index];
                       return ListTile(
                         leading: Icon(
                           item.bought
@@ -185,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline),
                               visualDensity: VisualDensity.compact,
-                              onPressed: () => removeItem(index),
+                              onPressed: () => removeItem(item),
                             ),
                           ],
                         ),
