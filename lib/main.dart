@@ -7,9 +7,11 @@ void main() {
 class Item {
   Item(this.name);
 
-  final String name;
+  String name;
   bool bought = false;
   int quantity = 1;
+  String note = '';
+  String category = 'Food';
 }
 
 class ShoppingApp extends StatelessWidget {
@@ -204,9 +206,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : null,
                           ),
                         ),
+                        subtitle: Text(
+                          item.note.isEmpty
+                              ? item.category
+                              : '${item.category} · ${item.note}',
+                        ),
                         onTap: () {
                           setState(() {
                             item.bought = !item.bought;
+                          });
+                        },
+                        onLongPress: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DetailsScreen(item: item),
+                            ),
+                          ).then((_) {
+                            setState(() {});
                           });
                         },
                         trailing: Row(
@@ -245,6 +262,99 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class DetailsScreen extends StatefulWidget {
+  const DetailsScreen({super.key, required this.item});
+
+  final Item item;
+
+  @override
+  State<DetailsScreen> createState() => _DetailsScreenState();
+}
+
+class _DetailsScreenState extends State<DetailsScreen> {
+  final nameController = TextEditingController();
+  final noteController = TextEditingController();
+  String category = 'Food';
+
+  @override
+  void initState() {
+    super.initState();
+    nameController.text = widget.item.name;
+    noteController.text = widget.item.note;
+    category = widget.item.category;
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    noteController.dispose();
+    super.dispose();
+  }
+
+  void save() {
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Type a name first')));
+      return;
+    }
+    widget.item.name = name;
+    widget.item.note = noteController.text.trim();
+    widget.item.category = category;
+    Navigator.pop(context);
+  }
+
+  Widget categoryChip(String label) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: category == label,
+      onSelected: (_) {
+        setState(() {
+          category = label;
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Item details')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              decoration: const InputDecoration(labelText: 'Note'),
+            ),
+            const SizedBox(height: 24),
+            const Text('Category'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                categoryChip('Food'),
+                const SizedBox(width: 8),
+                categoryChip('Drinks'),
+                const SizedBox(width: 8),
+                categoryChip('Home'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            FilledButton(onPressed: save, child: const Text('Save')),
+          ],
+        ),
       ),
     );
   }
