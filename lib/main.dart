@@ -9,6 +9,7 @@ class Item {
 
   final String name;
   bool bought = false;
+  int quantity = 1;
 }
 
 class ShoppingApp extends StatelessWidget {
@@ -133,9 +134,36 @@ class _HomeScreenState extends State<HomeScreen> {
                             item.bought = !item.bought;
                           });
                         },
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => removeItem(index),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                if (item.quantity > 1) {
+                                  setState(() {
+                                    item.quantity--;
+                                  });
+                                }
+                              },
+                            ),
+                            Text('${item.quantity}'),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                setState(() {
+                                  item.quantity++;
+                                });
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => removeItem(index),
+                            ),
+                          ],
                         ),
                       );
                     },
