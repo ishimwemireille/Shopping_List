@@ -45,10 +45,22 @@ class _HomeScreenState extends State<HomeScreen> {
           .showSnackBar(const SnackBar(content: Text('Type an item first')));
       return;
     }
-    if (items.any((item) => item.name == text)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$text is already on the list')));
+    final matches = items.where(
+      (item) => item.name.toLowerCase() == text.toLowerCase(),
+    );
+    if (matches.isNotEmpty) {
+      final existing = matches.first;
+      setState(() {
+        existing.quantity++;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${existing.name} is already on the list: now ×${existing.quantity}',
+          ),
+        ),
+      );
+      controller.clear();
       return;
     }
     setState(() {
