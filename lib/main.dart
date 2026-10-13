@@ -40,15 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void addItem() {
     final text = controller.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Type an item first')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Type an item first')));
       return;
     }
     if (items.any((item) => item.name == text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$text is already on the list')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$text is already on the list')));
       return;
     }
     setState(() {
@@ -62,9 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       items.removeAt(index);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name removed')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$name removed')));
   }
 
   @override
@@ -110,33 +108,38 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return ListTile(
-                  leading: Icon(
-                    item.bought ? Icons.check_circle : Icons.shopping_basket,
+            child: items.isEmpty
+                ? const Center(child: Text('Your list is empty'))
+                : ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return ListTile(
+                        leading: Icon(
+                          item.bought
+                              ? Icons.check_circle
+                              : Icons.shopping_basket,
+                        ),
+                        title: Text(
+                          item.name,
+                          style: TextStyle(
+                            decoration: item.bought
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            item.bought = !item.bought;
+                          });
+                        },
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => removeItem(index),
+                        ),
+                      );
+                    },
                   ),
-                  title: Text(
-                    item.name,
-                    style: TextStyle(
-                      decoration:
-                          item.bought ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  onTap: () {
-                    setState(() {
-                      item.bought = !item.bought;
-                    });
-                  },
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => removeItem(index),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),
