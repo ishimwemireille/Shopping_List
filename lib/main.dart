@@ -1,7 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'weather.dart';
 
 void main() {
   runApp(const ShoppingApp());
+}
+
+IconData iconFor(int code) {
+  if (code == 0) return Icons.wb_sunny;
+  if (code <= 3) return Icons.cloud;
+  if (code == 45 || code == 48) return Icons.foggy;
+  if (code >= 95) return Icons.thunderstorm;
+  if (code >= 51) return Icons.water_drop;
+  return Icons.help_outline;
 }
 
 class Item {
@@ -12,6 +26,25 @@ class Item {
   int quantity = 1;
   String note = '';
   String category = 'Food';
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'bought': bought,
+      'quantity': quantity,
+      'note': note,
+      'category': category,
+    };
+  }
+
+  factory Item.fromJson(Map<String, dynamic> json) {
+    final item = Item(json['name'] as String);
+    item.bought = json['bought'] as bool;
+    item.quantity = json['quantity'] as int;
+    item.note = json['note'] as String;
+    item.category = json['category'] as String;
+    return item;
+  }
 }
 
 class ShoppingApp extends StatelessWidget {
@@ -37,9 +70,64 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final items = [Item('Milk'), Item('Bread'), Item('Rice')];
+  List<Item> items = [Item('Milk'), Item('Bread'), Item('Rice')];
   final controller = TextEditingController();
   String filter = 'All';
+
+  Weather? weather;
+  bool weatherLoading = true;
+  String? weatherError;
+
+  @override
+  void initState() {
+    super.initState();
+    loadItems();
+    loadWeather();
+  }
+
+  Future<void> saveItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = items.map((item) => item.toJson()).toList();
+    await prefs.setString('items', jsonEncode(list));
+  }
+
+  Future<void> loadItems() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('items');
+    if (saved != null) {
+      final list = jsonDecode(saved) as List;
+      setState(() {
+        items = list
+            .map((x) => Item.fromJson(x as Map<String, dynamic>))
+            .toList();
+      });
+    }
+  }
+
+  Future<void> loadWeather() async {
+    try {
+      final result = await fetchWeather();
+      setState(() {
+        weather = result;
+        weatherLoading = false;
+        weatherError = null;
+      });
+    } catch (e) {
+      setState(() {
+        weatherLoading = false;
+        weatherError =
+            'Could not load the weather. Check your internet connection.';
+      });
+    }
+  }
+
+  void retryWeather() {
+    setState(() {
+      weatherLoading = true;
+      weatherError = null;
+    });
+    loadWeather();
+  }
 
   void addItem() {
     final text = controller.text.trim();
@@ -56,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         existing.quantity++;
       });
+      saveItems();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -69,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       items.add(Item(text));
     });
+    saveItems();
     controller.clear();
   }
 
@@ -77,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       items.remove(item);
     });
+    saveItems();
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -87,6 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {
               items.insert(index, item);
             });
+            saveItems();
           },
         ),
       ),
@@ -97,6 +189,50 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     controller.dispose();
     super.dispose();
+  }
+
+  Widget weatherStrip() {
+    if (weatherLoading) {
+      return const Card(
+        margin: EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: ListTile(
+          leading: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          title: Text('Loading the weather...'),
+        ),
+      );
+    }
+
+    if (weatherError != null) {
+      return Card(
+        margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: ListTile(
+          leading: const Icon(Icons.wifi_off),
+          title: Text(weatherError!),
+          trailing: FilledButton(
+            onPressed: retryWeather,
+            child: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: ListTile(
+        leading: Icon(iconFor(weather!.code), size: 36),
+        title: Text(
+          'Kigali ${weather!.temperature.round()}°C · ${describe(weather!.code)}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          'Humidity ${weather!.humidity}% · Wind ${weather!.wind} km/h',
+        ),
+      ),
+    );
   }
 
   @override
@@ -125,12 +261,14 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 items.removeWhere((item) => item.bought);
               });
+              saveItems();
             },
           ),
         ],
       ),
       body: Column(
         children: [
+          weatherStrip(),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -215,6 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() {
                             item.bought = !item.bought;
                           });
+                          saveItems();
                         },
                         onLongPress: () {
                           Navigator.push(
@@ -224,6 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ).then((_) {
                             setState(() {});
+                            saveItems();
                           });
                         },
                         trailing: Row(
@@ -237,6 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   setState(() {
                                     item.quantity--;
                                   });
+                                  saveItems();
                                 }
                               },
                             ),
@@ -248,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 setState(() {
                                   item.quantity++;
                                 });
+                                saveItems();
                               },
                             ),
                             IconButton(
